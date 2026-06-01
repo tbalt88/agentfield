@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.86-rc.2] - 2026-06-01
+
+
+### Added
+
+- Feat(cli): add minimal trigger surface (#605)
+
+* feat(cli): add reasoner trigger commands
+
+* fix(cli): keep trigger streams open
+
+* test(cli): cover trigger command flows
+
+---------
+
+Co-authored-by: Abir Abbas <abirabbas1998@gmail.com> (4d4cf02)
+
+
+
+### Documentation
+
+- Docs: add Agentic PR Reviewer (pr-af) to Built With AgentField (#607) (15016d4)
+
 ## [0.1.86-rc.1] - 2026-05-29
 
 
