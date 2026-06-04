@@ -20,6 +20,24 @@ type Config struct {
 	Storage    StorageConfig    `yaml:"storage" mapstructure:"storage"`
 	UI         UIConfig         `yaml:"ui" mapstructure:"ui"`
 	API        APIConfig        `yaml:"api" mapstructure:"api"`
+	Telemetry  TelemetryConfig  `yaml:"telemetry" mapstructure:"telemetry"`
+}
+
+// TelemetryConfig controls anonymous OSS usage telemetry. It is separate from
+// Prometheus metrics and OpenTelemetry tracing, which remain local/self-hosted
+// observability surfaces.
+type TelemetryConfig struct {
+	Enabled       *bool         `yaml:"enabled" mapstructure:"enabled"`
+	Mode          string        `yaml:"mode" mapstructure:"mode"`
+	Endpoint      string        `yaml:"endpoint" mapstructure:"endpoint"`
+	InstallIDPath string        `yaml:"install_id_path" mapstructure:"install_id_path"`
+	InstallID     string        `yaml:"install_id" mapstructure:"install_id"`
+	Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
+}
+
+// IsEnabled returns true unless telemetry was explicitly disabled.
+func (c TelemetryConfig) IsEnabled() bool {
+	return c.Enabled == nil || *c.Enabled
 }
 
 // UIConfig holds configuration for the web UI.
@@ -56,10 +74,10 @@ type RegistrationConfig struct {
 
 // NodeLogProxyConfig limits the control plane proxy to agent process logs (NDJSON).
 type NodeLogProxyConfig struct {
-	ConnectTimeout      time.Duration `yaml:"connect_timeout" mapstructure:"connect_timeout"`
-	StreamIdleTimeout   time.Duration `yaml:"stream_idle_timeout" mapstructure:"stream_idle_timeout"`
-	MaxStreamDuration   time.Duration `yaml:"max_stream_duration" mapstructure:"max_stream_duration"`
-	MaxTailLines        int           `yaml:"max_tail_lines" mapstructure:"max_tail_lines"`
+	ConnectTimeout    time.Duration `yaml:"connect_timeout" mapstructure:"connect_timeout"`
+	StreamIdleTimeout time.Duration `yaml:"stream_idle_timeout" mapstructure:"stream_idle_timeout"`
+	MaxStreamDuration time.Duration `yaml:"max_stream_duration" mapstructure:"max_stream_duration"`
+	MaxTailLines      int           `yaml:"max_tail_lines" mapstructure:"max_tail_lines"`
 }
 
 // EffectiveNodeLogProxy returns proxy settings with defaults for zero values.
@@ -82,11 +100,11 @@ func EffectiveNodeLogProxy(c NodeLogProxyConfig) NodeLogProxyConfig {
 
 // ExecutionLogsConfig governs structured execution-correlated logs stored by the control plane.
 type ExecutionLogsConfig struct {
-	RetentionPeriod      time.Duration `yaml:"retention_period" mapstructure:"retention_period"`
-	MaxEntriesPerExecution int         `yaml:"max_entries_per_execution" mapstructure:"max_entries_per_execution"`
-	MaxTailEntries       int           `yaml:"max_tail_entries" mapstructure:"max_tail_entries"`
-	StreamIdleTimeout    time.Duration `yaml:"stream_idle_timeout" mapstructure:"stream_idle_timeout"`
-	MaxStreamDuration    time.Duration `yaml:"max_stream_duration" mapstructure:"max_stream_duration"`
+	RetentionPeriod        time.Duration `yaml:"retention_period" mapstructure:"retention_period"`
+	MaxEntriesPerExecution int           `yaml:"max_entries_per_execution" mapstructure:"max_entries_per_execution"`
+	MaxTailEntries         int           `yaml:"max_tail_entries" mapstructure:"max_tail_entries"`
+	StreamIdleTimeout      time.Duration `yaml:"stream_idle_timeout" mapstructure:"stream_idle_timeout"`
+	MaxStreamDuration      time.Duration `yaml:"max_stream_duration" mapstructure:"max_stream_duration"`
 }
 
 // EffectiveExecutionLogs returns execution-log settings with defaults for zero values.
@@ -123,7 +141,7 @@ type ApprovalConfig struct {
 type NodeHealthConfig struct {
 	CheckInterval           time.Duration `yaml:"check_interval" mapstructure:"check_interval"`                       // How often to HTTP health check nodes (0 = default 10s)
 	CheckTimeout            time.Duration `yaml:"check_timeout" mapstructure:"check_timeout"`                         // Timeout per HTTP health check (0 = default 5s)
-	ConsecutiveFailures     int           `yaml:"consecutive_failures" mapstructure:"consecutive_failures"`            // Failures before marking inactive (0 = default 3; set 1 for instant)
+	ConsecutiveFailures     int           `yaml:"consecutive_failures" mapstructure:"consecutive_failures"`           // Failures before marking inactive (0 = default 3; set 1 for instant)
 	RecoveryDebounce        time.Duration `yaml:"recovery_debounce" mapstructure:"recovery_debounce"`                 // Wait before allowing inactive->active (0 = default 5s)
 	HeartbeatStaleThreshold time.Duration `yaml:"heartbeat_stale_threshold" mapstructure:"heartbeat_stale_threshold"` // Heartbeat age before marking stale (0 = default 60s)
 }
@@ -152,21 +170,21 @@ type ExecutionQueueConfig struct {
 
 // LLMHealthConfig configures LLM backend health monitoring with circuit breaker.
 type LLMHealthConfig struct {
-	Enabled            bool          `yaml:"enabled" mapstructure:"enabled"`
-	Endpoints          []LLMEndpoint `yaml:"endpoints" mapstructure:"endpoints"`
-	CheckInterval      time.Duration `yaml:"check_interval" mapstructure:"check_interval"`       // How often to probe (default 15s)
-	CheckTimeout       time.Duration `yaml:"check_timeout" mapstructure:"check_timeout"`         // Timeout per probe (default 5s)
-	FailureThreshold   int           `yaml:"failure_threshold" mapstructure:"failure_threshold"`  // Failures before opening circuit (default 3)
-	RecoveryTimeout    time.Duration `yaml:"recovery_timeout" mapstructure:"recovery_timeout"`    // How long circuit stays open before half-open (default 30s)
-	HalfOpenMaxProbes  int           `yaml:"half_open_max_probes" mapstructure:"half_open_max_probes"` // Probes in half-open before closing (default 2)
+	Enabled           bool          `yaml:"enabled" mapstructure:"enabled"`
+	Endpoints         []LLMEndpoint `yaml:"endpoints" mapstructure:"endpoints"`
+	CheckInterval     time.Duration `yaml:"check_interval" mapstructure:"check_interval"`             // How often to probe (default 15s)
+	CheckTimeout      time.Duration `yaml:"check_timeout" mapstructure:"check_timeout"`               // Timeout per probe (default 5s)
+	FailureThreshold  int           `yaml:"failure_threshold" mapstructure:"failure_threshold"`       // Failures before opening circuit (default 3)
+	RecoveryTimeout   time.Duration `yaml:"recovery_timeout" mapstructure:"recovery_timeout"`         // How long circuit stays open before half-open (default 30s)
+	HalfOpenMaxProbes int           `yaml:"half_open_max_probes" mapstructure:"half_open_max_probes"` // Probes in half-open before closing (default 2)
 }
 
 // LLMEndpoint defines a single LLM backend to monitor.
 type LLMEndpoint struct {
-	Name     string `yaml:"name" mapstructure:"name"`         // Display name (e.g. "litellm")
-	URL      string `yaml:"url" mapstructure:"url"`           // Health check URL (e.g. "http://localhost:4000/health")
-	Method   string `yaml:"method" mapstructure:"method"`     // HTTP method (default GET)
-	Header   string `yaml:"header" mapstructure:"header"`     // Optional auth header value
+	Name   string `yaml:"name" mapstructure:"name"`     // Display name (e.g. "litellm")
+	URL    string `yaml:"url" mapstructure:"url"`       // Health check URL (e.g. "http://localhost:4000/health")
+	Method string `yaml:"method" mapstructure:"method"` // HTTP method (default GET)
+	Header string `yaml:"header" mapstructure:"header"` // Optional auth header value
 }
 
 // FeatureConfig holds configuration for enabling/disabling features.
@@ -187,9 +205,9 @@ type TracingConfig struct {
 
 // ConnectorConfig holds configuration for the connector service integration.
 type ConnectorConfig struct {
-	Enabled      bool                              `yaml:"enabled" mapstructure:"enabled"`
-	Token        string                            `yaml:"token" mapstructure:"token"`
-	Capabilities map[string]ConnectorCapability     `yaml:"capabilities" mapstructure:"capabilities"`
+	Enabled      bool                           `yaml:"enabled" mapstructure:"enabled"`
+	Token        string                         `yaml:"token" mapstructure:"token"`
+	Capabilities map[string]ConnectorCapability `yaml:"capabilities" mapstructure:"capabilities"`
 }
 
 // ConnectorCapability defines whether a capability domain is enabled and its access mode.
@@ -257,14 +275,14 @@ type TagApprovalRule struct {
 
 // AccessPolicyConfig defines a tag-based authorization policy for cross-agent calls.
 type AccessPolicyConfig struct {
-	Name           string                        `yaml:"name" mapstructure:"name"`
-	CallerTags     []string                      `yaml:"caller_tags" mapstructure:"caller_tags"`
-	TargetTags     []string                      `yaml:"target_tags" mapstructure:"target_tags"`
-	AllowFunctions []string                      `yaml:"allow_functions" mapstructure:"allow_functions"`
-	DenyFunctions  []string                      `yaml:"deny_functions" mapstructure:"deny_functions"`
-	Constraints    map[string]ConstraintConfig    `yaml:"constraints" mapstructure:"constraints"`
-	Action         string                        `yaml:"action" mapstructure:"action"`     // "allow" or "deny"
-	Priority       int                           `yaml:"priority" mapstructure:"priority"` // higher = evaluated first
+	Name           string                      `yaml:"name" mapstructure:"name"`
+	CallerTags     []string                    `yaml:"caller_tags" mapstructure:"caller_tags"`
+	TargetTags     []string                    `yaml:"target_tags" mapstructure:"target_tags"`
+	AllowFunctions []string                    `yaml:"allow_functions" mapstructure:"allow_functions"`
+	DenyFunctions  []string                    `yaml:"deny_functions" mapstructure:"deny_functions"`
+	Constraints    map[string]ConstraintConfig `yaml:"constraints" mapstructure:"constraints"`
+	Action         string                      `yaml:"action" mapstructure:"action"`     // "allow" or "deny"
+	Priority       int                         `yaml:"priority" mapstructure:"priority"` // higher = evaluated first
 }
 
 // ConstraintConfig defines a parameter constraint for a policy.
@@ -356,10 +374,25 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse configuration file %s: %w", configPath, err)
 	}
 
+	ApplyDefaults(&cfg)
+
 	// Apply environment variable overrides
 	ApplyEnvOverrides(&cfg)
 
 	return &cfg, nil
+}
+
+// ApplyDefaults fills values that should be stable across config loaders.
+func ApplyDefaults(cfg *Config) {
+	if cfg.Telemetry.Mode == "" {
+		cfg.Telemetry.Mode = "anonymous"
+	}
+	if cfg.Telemetry.Endpoint == "" {
+		cfg.Telemetry.Endpoint = "https://agentfield.ai/api/oss/telemetry"
+	}
+	if cfg.Telemetry.Timeout <= 0 {
+		cfg.Telemetry.Timeout = 800 * time.Millisecond
+	}
 }
 
 // ApplyEnvOverrides applies environment variable overrides to the config.
@@ -574,6 +607,26 @@ func ApplyEnvOverrides(cfg *Config) {
 		cfg.Features.Tracing.Insecure = val == "true" || val == "1"
 	}
 
+	// Anonymous OSS usage telemetry overrides.
+	if val := os.Getenv("AGENTFIELD_TELEMETRY_ENABLED"); val != "" {
+		enabled := val == "true" || val == "1"
+		cfg.Telemetry.Enabled = &enabled
+	}
+	if val := os.Getenv("AGENTFIELD_TELEMETRY_ENDPOINT"); val != "" {
+		cfg.Telemetry.Endpoint = val
+	}
+	if val := os.Getenv("AGENTFIELD_TELEMETRY_INSTALL_ID"); val != "" {
+		cfg.Telemetry.InstallID = val
+	}
+	if val := os.Getenv("AGENTFIELD_TELEMETRY_INSTALL_ID_PATH"); val != "" {
+		cfg.Telemetry.InstallIDPath = val
+	}
+	if val := os.Getenv("AGENTFIELD_TELEMETRY_TIMEOUT"); val != "" {
+		if d, err := time.ParseDuration(val); err == nil {
+			cfg.Telemetry.Timeout = d
+		}
+	}
+
 	// Connector overrides
 	if val := os.Getenv("AGENTFIELD_CONNECTOR_ENABLED"); val != "" {
 		cfg.Features.Connector.Enabled = val == "true" || val == "1"
@@ -583,10 +636,10 @@ func ApplyEnvOverrides(cfg *Config) {
 	}
 	// Connector capability overrides (true / false / readonly)
 	connectorCapEnvMap := map[string]string{
-		"AGENTFIELD_CONNECTOR_CAP_POLICY_MANAGEMENT":   "policy_management",
-		"AGENTFIELD_CONNECTOR_CAP_TAG_MANAGEMENT":      "tag_management",
-		"AGENTFIELD_CONNECTOR_CAP_DID_MANAGEMENT":      "did_management",
-		"AGENTFIELD_CONNECTOR_CAP_REASONER_MANAGEMENT": "reasoner_management",
+		"AGENTFIELD_CONNECTOR_CAP_POLICY_MANAGEMENT":    "policy_management",
+		"AGENTFIELD_CONNECTOR_CAP_TAG_MANAGEMENT":       "tag_management",
+		"AGENTFIELD_CONNECTOR_CAP_DID_MANAGEMENT":       "did_management",
+		"AGENTFIELD_CONNECTOR_CAP_REASONER_MANAGEMENT":  "reasoner_management",
 		"AGENTFIELD_CONNECTOR_CAP_STATUS_READ":          "status_read",
 		"AGENTFIELD_CONNECTOR_CAP_OBSERVABILITY_CONFIG": "observability_config",
 		"AGENTFIELD_CONNECTOR_CAP_CONFIG_MANAGEMENT":    "config_management",

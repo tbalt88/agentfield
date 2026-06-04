@@ -168,6 +168,50 @@ func TestLoadConfig(t *testing.T) {
 	})
 }
 
+func TestTelemetryConfigDefaultsAndEnvOverrides(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agentfield.yaml")
+	if err := os.WriteFile(path, []byte("agentfield:\n  port: 8080\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig returned error: %v", err)
+	}
+	if !cfg.Telemetry.IsEnabled() {
+		t.Fatal("expected telemetry enabled by default")
+	}
+	if cfg.Telemetry.Endpoint != "https://agentfield.ai/api/oss/telemetry" {
+		t.Fatalf("unexpected endpoint %q", cfg.Telemetry.Endpoint)
+	}
+	if cfg.Telemetry.Timeout != 800*time.Millisecond {
+		t.Fatalf("unexpected timeout %s", cfg.Telemetry.Timeout)
+	}
+
+	t.Setenv("AGENTFIELD_TELEMETRY_ENABLED", "false")
+	t.Setenv("AGENTFIELD_TELEMETRY_ENDPOINT", "https://example.test/telemetry")
+	t.Setenv("AGENTFIELD_TELEMETRY_INSTALL_ID", "external-install")
+	t.Setenv("AGENTFIELD_TELEMETRY_TIMEOUT", "250ms")
+
+	cfg, err = LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig with env returned error: %v", err)
+	}
+	if cfg.Telemetry.IsEnabled() {
+		t.Fatal("expected telemetry disabled by env")
+	}
+	if cfg.Telemetry.Endpoint != "https://example.test/telemetry" {
+		t.Fatalf("unexpected endpoint override %q", cfg.Telemetry.Endpoint)
+	}
+	if cfg.Telemetry.InstallID != "external-install" {
+		t.Fatalf("unexpected install id override %q", cfg.Telemetry.InstallID)
+	}
+	if cfg.Telemetry.Timeout != 250*time.Millisecond {
+		t.Fatalf("unexpected timeout override %s", cfg.Telemetry.Timeout)
+	}
+}
+
 func TestApplyEnvOverrides(t *testing.T) {
 	cfg := &Config{
 		API: APIConfig{

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Agent-Field/agentfield/control-plane/internal/events"
 	"github.com/Agent-Field/agentfield/control-plane/internal/logger"
 	"github.com/Agent-Field/agentfield/control-plane/internal/services"
 	"github.com/Agent-Field/agentfield/control-plane/internal/storage"
@@ -631,6 +632,7 @@ func RegisterNodeHandler(storageProvider storage.StorageProvider, uiService *ser
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store node: " + err.Error()})
 			return
 		}
+		events.PublishNodeRegistered(newNode.ID, &newNode)
 		InvalidateDiscoveryCache()
 
 		if shouldReapOrphans {
@@ -1017,6 +1019,7 @@ func RegisterServerlessAgentHandler(storageProvider storage.StorageProvider, uiS
 			})
 			return
 		}
+		events.PublishNodeRegistered(newNode.ID, &newNode)
 		InvalidateDiscoveryCache()
 
 		logger.Logger.Info().Msgf("✅ Successfully registered serverless agent: %s", newNode.ID)

@@ -50,6 +50,16 @@ curl -s http://localhost:8080/api/v1/did/workflow/$run_id/vc-chain | head -c 120
 
 - User / password / database: `agentfield` / `agentfield` / `agentfield`
 
+## Anonymous Telemetry
+
+The Docker stack enables anonymous usage telemetry by default to help us improve AgentField. It records coarse product signals such as startup, agent registration, SDK language, runtime type, and execution status buckets.
+
+It does not collect prompts, inputs, outputs, logs, secrets, API keys, raw IP addresses, hostnames, user IDs, DIDs, or raw error text. Disable it with:
+
+```bash
+AGENTFIELD_TELEMETRY_ENABLED=false docker compose up
+```
+
 ## Docker networking note (callback URL)
 
 The control plane must be able to call your agent at the URL it registers.

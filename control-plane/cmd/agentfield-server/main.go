@@ -290,6 +290,8 @@ func loadConfig(configFile string) (*config.Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	config.ApplyDefaults(&cfg)
+
 	// Apply environment variable overrides using shorter env var names
 	// (e.g. AGENTFIELD_CONNECTOR_ENABLED instead of AGENTFIELD_FEATURES_CONNECTOR_ENABLED).
 	// Viper's AutomaticEnv only works for keys it already knows about from config files,

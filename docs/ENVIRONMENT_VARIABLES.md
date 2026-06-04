@@ -50,6 +50,18 @@ If set, the control plane requires an API key for most endpoints.
 - `AGENTFIELD_UI_ENABLED` (default: `true`)
 - `AGENTFIELD_UI_MODE` (default: `embedded`)
 
+### Anonymous Telemetry
+
+Anonymous usage telemetry is enabled by default to help us improve AgentField. It records coarse product signals such as startup, agent registration, SDK language, runtime type, storage mode, and execution status buckets.
+
+It does not collect prompts, inputs, outputs, logs, secrets, API keys, raw IP addresses, hostnames, user IDs, DIDs, or raw error text.
+
+- `AGENTFIELD_TELEMETRY_ENABLED` (default: `true`): Set to `false` to disable anonymous usage telemetry.
+- `AGENTFIELD_TELEMETRY_ENDPOINT` (default: `https://agentfield.ai/api/oss/telemetry`): Hosted anonymous telemetry endpoint.
+- `AGENTFIELD_TELEMETRY_INSTALL_ID` (optional): Stable externally managed anonymous install ID. The control plane hashes it before sending.
+- `AGENTFIELD_TELEMETRY_INSTALL_ID_PATH` (optional): Path for the persisted local install ID.
+- `AGENTFIELD_TELEMETRY_TIMEOUT` (default: `800ms`): Per-event send timeout. Failures are ignored.
+
 ### CORS (HTTP API)
 
 These map to `api.cors.*` in config. When set via env, use comma-separated values.

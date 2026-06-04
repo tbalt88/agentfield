@@ -79,6 +79,7 @@ type AgentFieldServer struct {
 	observabilityForwarder services.ObservabilityForwarder
 	executionTracer        *observability.ExecutionTracer
 	tracerShutdown         func(context.Context) error
+	telemetryService       *observability.TelemetryService
 	configMu               sync.RWMutex
 	// Trigger / webhook plugin system
 	triggerDispatcher *services.TriggerDispatcher
@@ -427,6 +428,16 @@ func NewAgentFieldServer(cfg *config.Config) (*AgentFieldServer, error) {
 		}
 	}
 
+	var telemetryService *observability.TelemetryService
+	if cfg.Telemetry.IsEnabled() {
+		service, err := observability.NewTelemetryService(cfg.Telemetry, agentfieldHome, cfg.Storage.Mode, "unknown")
+		if err != nil {
+			logger.Logger.Warn().Err(err).Msg("failed to initialize anonymous OSS telemetry")
+		} else {
+			telemetryService = service
+		}
+	}
+
 	// Initialize LLM health monitor
 	var llmHealthMonitor *services.LLMHealthMonitor
 	if cfg.AgentField.LLMHealth.Enabled && len(cfg.AgentField.LLMHealth.Endpoints) > 0 {
@@ -489,6 +500,7 @@ func NewAgentFieldServer(cfg *config.Config) (*AgentFieldServer, error) {
 		observabilityForwarder: observabilityForwarder,
 		executionTracer:        executionTracer,
 		tracerShutdown:         tracerShutdown,
+		telemetryService:       telemetryService,
 		registryWatcherCancel:  nil,
 		adminGRPCPort:          adminPort,
 		triggerDispatcher:      triggerDispatcher,
@@ -581,6 +593,11 @@ func (s *AgentFieldServer) Start() error {
 	// Start OpenTelemetry execution tracer in background
 	if s.executionTracer != nil {
 		s.executionTracer.Start(ctx)
+	}
+
+	// Start anonymous OSS usage telemetry. Best-effort only.
+	if s.telemetryService != nil {
+		s.telemetryService.Start(ctx)
 	}
 
 	// Boot loop-kind triggers (cron etc.) so a server restart resumes existing schedules.
@@ -734,6 +751,9 @@ func (s *AgentFieldServer) Stop() error {
 	// Stop OpenTelemetry execution tracer and flush remaining spans
 	if s.executionTracer != nil {
 		s.executionTracer.Stop()
+	}
+	if s.telemetryService != nil {
+		s.telemetryService.Stop()
 	}
 	if s.tracerShutdown != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

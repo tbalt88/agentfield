@@ -58,6 +58,8 @@ interface WildcardParams extends ParamsDictionary {
 }
 class TargetNotFoundError extends Error {}
 
+const AGENTFIELD_TS_SDK_VERSION = '0.1.82';
+
 const harnessRunners = new WeakMap<object, HarnessRunner>();
 
 function normalizeExecutionContext(
@@ -1477,7 +1479,20 @@ export class Agent {
         reasoners,
         skills,
         proposed_tags: agentTags,
-        tags: agentTags
+        tags: agentTags,
+        metadata: {
+          deployment: {
+            environment: 'development',
+            platform: 'typescript',
+            region: 'local'
+          },
+          custom: {
+            sdk: {
+              language: 'typescript',
+              version: AGENTFIELD_TS_SDK_VERSION
+            }
+          }
+        }
       });
 
       // Handle pending approval state: poll until approved

@@ -256,6 +256,7 @@ func loadConfig(configFile string) (*config.Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	config.ApplyDefaults(&cfg)
 	config.ApplyEnvOverrides(&cfg)
 
 	// Apply sensible defaults for user experience
