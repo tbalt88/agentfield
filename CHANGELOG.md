@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.91-rc.2] - 2026-06-09
+
+
+### Fixed
+
+- Fix(sdk): attribute app.call parent from task-local context, not shared agent state (#638)
+
+`Agent.call()` resolved the parent execution via
+`_get_current_execution_context()`, which falls back to the process-global
+`self._current_execution_context` when no task-local context is set. That
+attribute is a single slot overwritten at the top of every reasoner
+invocation, so in a server running overlapping executions it holds whichever
+reasoner was most recently dispatched.
+
+When a call originates OUTSIDE any execution — e.g. a webhook handler's
+fire-and-forget asyncio task — it has no task-local context, so the fallback
+attributed it to an unrelated, possibly still-in-flight execution (one paused
+on a human-in-the-loop approval for hours). The control plane then recorded
+that bystander as the new run's parent, chaining independent webhook-triggered
+runs into one bogus workflow DAG and cross-wiring the pause-clock / budget
+cascades that key off parent_execution_id.
+
+Resolve the parent in `call()` from the task-local contextvar only
+(`get_current_context()`). asyncio.create_task copies the contextvar, so
+genuine sub-calls made from within a reasoner still nest correctly; when the
+contextvar is absent we mint a fresh root so the call starts its own workflow
+(matching cold-process behavior). `_get_current_execution_context()` is left
+unchanged for its other consumers (pause/note/vc), which run within an
+execution where the contextvar is set.
+
+Tests: a call with a stale bystander on the shared attr but no task-local
+context must start a fresh root (not inherit it); a call from within an
+execution still nests under that execution.
+
+Co-authored-by: Claude Opus 4.8 <noreply@anthropic.com> (db4d2b1)
+
 ## [0.1.91-rc.1] - 2026-06-09
 
 
