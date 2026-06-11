@@ -317,6 +317,16 @@ func TestSQLAPIClientPollStatementErrors(t *testing.T) {
 		t.Fatalf("missing handle error = %v", err)
 	}
 
+	_, err = client.pollStatement(context.Background(), config{
+		AccountURL: "https://acct.snowflakecomputing.com", TimeoutSeconds: 1,
+	}, "pat", statementResponse{
+		StatementHandle:    "stmt",
+		StatementStatusURL: "https://metadata.internal/api/v2/statements/stmt",
+	})
+	if err == nil || !strings.Contains(err.Error(), "relative SQL API path") {
+		t.Fatalf("absolute status URL error = %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err = client.pollStatement(ctx, config{AccountURL: "https://acct.snowflakecomputing.com", TimeoutSeconds: 1}, "pat", statementResponse{StatementHandle: "stmt"})

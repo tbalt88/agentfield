@@ -189,19 +189,54 @@ func validateReadOnlySQL(sql string) error {
 	}
 }
 
-func validateAccountURL(raw string) (string, error) {
+type snowflakeAccountEndpoint struct {
+	host string
+}
+
+func validateAccountURL(raw string) (snowflakeAccountEndpoint, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
-		return "", errors.New("snowflake: account_url must be an HTTPS Snowflake account URL")
+		return snowflakeAccountEndpoint{}, errors.New("snowflake: account_url must be an HTTPS Snowflake account URL")
 	}
 	if u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
-		return "", errors.New("snowflake: account_url must not include a path, query, or fragment")
+		return snowflakeAccountEndpoint{}, errors.New("snowflake: account_url must not include a path, query, or fragment")
+	}
+	if u.Port() != "" {
+		return snowflakeAccountEndpoint{}, errors.New("snowflake: account_url must not include a port")
 	}
 	host := strings.ToLower(u.Hostname())
 	if host != "snowflakecomputing.com" && !strings.HasSuffix(host, ".snowflakecomputing.com") {
-		return "", errors.New("snowflake: account_url host must end with snowflakecomputing.com")
+		return snowflakeAccountEndpoint{}, errors.New("snowflake: account_url host must end with snowflakecomputing.com")
 	}
-	return strings.TrimRight(u.String(), "/"), nil
+	return snowflakeAccountEndpoint{host: host}, nil
+}
+
+func (e snowflakeAccountEndpoint) apiURL(apiPath string) (string, error) {
+	if !strings.HasPrefix(apiPath, "/api/v2/statements") {
+		return "", errors.New("snowflake: SQL API path must stay under /api/v2/statements")
+	}
+	u := url.URL{Scheme: "https", Host: e.host, Path: apiPath}
+	return u.String(), nil
+}
+
+func statementStatusPath(raw string, handle string) (string, error) {
+	if handle == "" {
+		return "", errors.New("snowflake: async SQL response missing statementHandle")
+	}
+	if raw == "" {
+		return "/api/v2/statements/" + url.PathEscape(handle), nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.IsAbs() || u.Host != "" || u.User != nil {
+		return "", errors.New("snowflake: statementStatusUrl must be a relative SQL API path")
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return "", errors.New("snowflake: statementStatusUrl must not include a query or fragment")
+	}
+	if !strings.HasPrefix(u.Path, "/api/v2/statements/") {
+		return "", errors.New("snowflake: statementStatusUrl must stay under /api/v2/statements")
+	}
+	return u.Path, nil
 }
 
 func (s *source) Run(ctx context.Context, raw json.RawMessage, secret string, emit func(sources.Event)) error {
@@ -309,7 +344,11 @@ type columnMeta struct {
 
 func (c *sqlAPIClient) Execute(ctx context.Context, cfg config, token, statement string) (statementResponse, error) {
 	var out statementResponse
-	accountURL, err := validateAccountURL(cfg.AccountURL)
+	account, err := validateAccountURL(cfg.AccountURL)
+	if err != nil {
+		return out, err
+	}
+	statementURL, err := account.apiURL("/api/v2/statements")
 	if err != nil {
 		return out, err
 	}
@@ -324,7 +363,7 @@ func (c *sqlAPIClient) Execute(ctx context.Context, cfg config, token, statement
 	if err != nil {
 		return out, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, accountURL+"/api/v2/statements", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, statementURL, bytes.NewReader(payload))
 	if err != nil {
 		return out, err
 	}
@@ -360,16 +399,17 @@ func (c *sqlAPIClient) Execute(ctx context.Context, cfg config, token, statement
 
 func (c *sqlAPIClient) pollStatement(ctx context.Context, cfg config, token string, status statementResponse) (statementResponse, error) {
 	var out statementResponse
-	accountURL, err := validateAccountURL(cfg.AccountURL)
+	account, err := validateAccountURL(cfg.AccountURL)
 	if err != nil {
 		return out, err
 	}
-	if status.StatementHandle == "" {
-		return out, errors.New("snowflake: async SQL response missing statementHandle")
+	statusPath, err := statementStatusPath(status.StatementStatusURL, status.StatementHandle)
+	if err != nil {
+		return out, err
 	}
-	statusURL := status.StatementStatusURL
-	if statusURL == "" {
-		statusURL = "/api/v2/statements/" + status.StatementHandle
+	statementURL, err := account.apiURL(statusPath)
+	if err != nil {
+		return out, err
 	}
 	httpClient := c.httpClient
 	if httpClient == nil {
@@ -385,7 +425,7 @@ func (c *sqlAPIClient) pollStatement(ctx context.Context, cfg config, token stri
 			return out, ctx.Err()
 		case <-time.After(time.Second):
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, accountURL+statusURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, statementURL, nil)
 		if err != nil {
 			return out, err
 		}
