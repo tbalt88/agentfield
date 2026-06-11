@@ -108,6 +108,71 @@ func TestParseConfigTrimsAndDefaults(t *testing.T) {
 	}
 }
 
+func TestValidateAccountURLAndAPIURL(t *testing.T) {
+	endpoint, err := validateAccountURL(" https://ACCT.SNOWFLAKECOMPUTING.COM ")
+	if err != nil {
+		t.Fatalf("validateAccountURL(valid): %v", err)
+	}
+	got, err := endpoint.apiURL("/api/v2/statements/stmt")
+	if err != nil {
+		t.Fatalf("apiURL(valid): %v", err)
+	}
+	if got != "https://acct.snowflakecomputing.com/api/v2/statements/stmt" {
+		t.Fatalf("apiURL = %q", got)
+	}
+
+	for _, raw := range []string{
+		"http://acct.snowflakecomputing.com",
+		"https://user@acct.snowflakecomputing.com",
+		"https://acct.snowflakecomputing.com/path",
+		"https://acct.snowflakecomputing.com?x=1",
+		"https://acct.snowflakecomputing.com#frag",
+		"https://acct.snowflakecomputing.com:443",
+		"https://metadata.internal",
+	} {
+		if _, err := validateAccountURL(raw); err == nil {
+			t.Fatalf("validateAccountURL(%q) expected error", raw)
+		}
+	}
+
+	if _, err := endpoint.apiURL("/api/v1/other"); err == nil {
+		t.Fatal("apiURL outside SQL API path expected error")
+	}
+}
+
+func TestStatementStatusPathValidation(t *testing.T) {
+	got, err := statementStatusPath("", "stmt/with space")
+	if err != nil {
+		t.Fatalf("statementStatusPath(default): %v", err)
+	}
+	if got != "/api/v2/statements/stmt%2Fwith%20space" {
+		t.Fatalf("default status path = %q", got)
+	}
+	got, err = statementStatusPath("/api/v2/statements/async-1", "ignored")
+	if err != nil {
+		t.Fatalf("statementStatusPath(relative): %v", err)
+	}
+	if got != "/api/v2/statements/async-1" {
+		t.Fatalf("relative status path = %q", got)
+	}
+
+	for _, raw := range []string{
+		"https://metadata.internal/api/v2/statements/stmt",
+		"//metadata.internal/api/v2/statements/stmt",
+		"/api/v2/statements/stmt?x=1",
+		"/api/v2/statements/stmt#frag",
+		"/metadata",
+		"%zz",
+	} {
+		if _, err := statementStatusPath(raw, "stmt"); err == nil {
+			t.Fatalf("statementStatusPath(%q) expected error", raw)
+		}
+	}
+	if _, err := statementStatusPath("", ""); err == nil {
+		t.Fatal("statementStatusPath missing handle expected error")
+	}
+}
+
 func TestPollOnceCallsSnowflakeSQLAPIAndEmitsEvents(t *testing.T) {
 	var gotAuth string
 	var gotTokenType string
