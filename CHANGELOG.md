@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.92-rc.9] - 2026-06-15
+
+
+### Other
+
+- Add Databricks integration pack (#667)
+
+* Add Databricks integration pack
+
+* Remove Databricks docs page from integration PR
+
+* Cover Databricks trigger UI defaults
+
+* fix(trigger-dispatcher): clean up orphan Execution + document 202 path
+
+If StoreWorkflowExecution fails after CreateExecutionRecord succeeds,
+the Execution row was previously stranded in Running. Now fail it so
+the partial state is observable.
+
+Also document why we deliberately skip completeDispatchExecution on a
+202 Accepted response: the node owns async completion via the
+reasoner-result callback path. (81e464d)
+
 ## [0.1.92-rc.8] - 2026-06-15
 
 
