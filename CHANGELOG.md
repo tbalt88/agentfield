@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.92-rc.14] - 2026-06-17
+
+
+### Chores
+
+- Chore(deps): patch js-yaml lockfiles (#672) (bfe4015)
+
 ## [0.1.92-rc.13] - 2026-06-16
 
 
