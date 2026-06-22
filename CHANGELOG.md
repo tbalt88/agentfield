@@ -6,6 +6,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.92-rc.20] - 2026-06-22
+
+
+### Other
+
+- Add workflow restart and replay reuse (#639)
+
+* feat: restart workflow runs with replay reuse
+
+* Polish restart recovery UI states
+
+* Fix run detail test mocks for restart hooks
+
+* Cover Python restart replay SDK paths
+
+* Show reused nodes in restart views
+
+* Cover restart provenance UX paths
+
+* Stabilize restart replay functional test
+
+* Stabilize restart replay coverage
+
+* refactor(restart): apply pr-af code review recommendations
+
+pr-af (https://github.com/Agent-Field/pr-af) reviewed the workflow
+restart/replay change and recommended these follow-ups, applied here:
+
+- Back-fill ExecutionReuseInfo.source_run_id from the run lineage so the
+  reused-node sidebar and graph provenance show the source run, not just the
+  source execution. Every reused node in a restarted run shares the run's
+  single replay source, so it is taken from lineage rather than re-queried
+  per node.
+- Document that the restart workflow_runs row is a metadata-only sidecar:
+  its status/total_steps are seeded at enqueue and are not kept current, and
+  all read paths derive live status from execution aggregation.
+- Document the replay-match contract in findReplayHit (keyed on
+  node/reasoner/canonical input+context; earliest succeeded source wins;
+  position/multiplicity agnostic).
+
+Adds TestFillReuseSourceRun covering the back-fill behavior.
+
+* Polish restart UI typography
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com>
+Co-authored-by: Abir Abbas <abirabbas1998@gmail.com> (e4d8596)
+
 ## [0.1.92-rc.19] - 2026-06-22
 
 
