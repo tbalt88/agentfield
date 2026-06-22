@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.93-rc.1] - 2026-06-22
+
+
+### Fixed
+
+- Fix(sdk): satisfy OpenAI strict response_format schema rules (#680)
+
+`app.ai(schema=...)` sent `strict: True` alongside Pydantic's raw
+`model_json_schema()`, which omits `additionalProperties: false` and a
+complete `required` list. OpenAI rejects such schemas with
+`BadRequestError: Invalid schema ... 'additionalProperties' is required
+to be supplied and to be false`, so every structured-output call against
+OpenAI failed and callers silently degraded to unstructured text.
+
+Add `_strictify_openai_schema`: recursively set `additionalProperties:
+false` and require all properties (including nested `$defs`) before
+sending. Surfaced while deploying the discuss agent, whose `app.ai`
+phrasing fell back to raw retrieved context on every call.
+
+Co-authored-by: Claude Opus 4.8 <noreply@anthropic.com> (79ae8b9)
+
 ## [0.1.92] - 2026-06-22
 
 ## [0.1.92-rc.20] - 2026-06-22
