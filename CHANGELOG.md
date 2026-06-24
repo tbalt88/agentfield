@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.94-rc.1] - 2026-06-24
+
+
+### Fixed
+
+- Fix(#424): fail closed on empty API key unless insecure mode is explicitly enabled (#682) (8ff2bc7)
+
 ## [0.1.93] - 2026-06-22
 
 ## [0.1.93-rc.1] - 2026-06-22
