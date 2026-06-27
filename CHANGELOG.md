@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.95-rc.2] - 2026-06-27
+
+
+### Fixed
+
+- Fix(security): Enforce fail-closed for empty admin token (#425) (#691) (bc0f7c7)
+
 ## [0.1.95-rc.1] - 2026-06-25
 
 
